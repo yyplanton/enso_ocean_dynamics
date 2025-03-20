@@ -10,15 +10,26 @@
 # basic python package
 from copy import deepcopy as copy__deepcopy, deepcopy
 from inspect import stack as inspect__stack
+# cartopy
+import cartopy.crs as ccrs
+from cartopy.crs import PlateCarree
+import cartopy.feature as cfeature
+# cmocean
+import cmocean
 # matplotlib
 from matplotlib.colors import BoundaryNorm, ListedColormap
+from matplotlib.patches import Polygon
 import matplotlib.pyplot as pyplot
 # numpy
+from numpy import array as numpy__array
 from numpy import linspace as numpy__linspace
+from numpy import meshgrid as numpy__meshgrid
+from numpy import zeros as numpy__zeros
 
 # local package
 from enso_ocean_dynamics.tools.default_tools import none_to_default
 from enso_ocean_dynamics.tools.print_tools import print_fail
+from enso_ocean_dynamics.wrapper.xarray_base import array_wrapper, convert_cf_dim_key
 # ---------------------------------------------------#
 
 
@@ -95,6 +106,38 @@ default_legend = {
         "horizontalalignment": default_plot["horizontalalignment"],
         "verticalalignment": default_plot["verticalalignment"],
         "rotation": default_plot["rotation"]},
+}
+# map
+default_map: dict[str, float | list[float] | PlateCarree | str] = {
+    "colorbar": "cmo.balance",
+    "color": "gainsboro",
+    "lat_lim": [-20., 20.],
+    "lat_tic": [-15, 0, 15],
+    "lon_lim": [130., 290.],
+    "lon_tic": [140, 180, 220, 260],
+    "projection": ccrs.PlateCarree(central_longitude=0),
+    "size_x": 7.2,
+    "size_y": 3.6,
+}
+default_region = {
+    "n30e": {"color": "k", "linestyle": "-", "linewidth": 3, "latitude": [-5., 5.], "longitude": [210., 270.],
+             "short_name": "N3"},
+    "n34e": {"color": "k", "linestyle": "-", "linewidth": 3, "latitude": [-5., 5.], "longitude": [190., 240.],
+             "short_name": "N3.4"},
+    "n40e": {"color": "k", "linestyle": "-", "linewidth": 3, "latitude": [-5., 5.], "longitude": [160., 210.],
+             "short_name": "N4"},
+    "pen1": {"color": "k", "linestyle": "-", "linewidth": 3, "latitude": [2., 6.], "longitude": [120., 280.],
+             "short_name": "PEN1"},
+    "pen3": {"color": "k", "linestyle": "-", "linewidth": 3, "latitude": [6., 10.], "longitude": [120., 280.],
+             "short_name": "PEN3"},
+    "pes1": {"color": "k", "linestyle": "-", "linewidth": 3, "latitude": [-6., -2.], "longitude": [120., 280.],
+             "short_name": "PES1"},
+    "pes3": {"color": "k", "linestyle": "-", "linewidth": 3, "latitude": [-10., -6.], "longitude": [120., 280.],
+             "short_name": "PES3"},
+    "pequ": {"color": "k", "linestyle": "-", "linewidth": 3, "latitude": [-5, 5], "longitude": [120., 280.],
+             "short_name": "PNEQ"},
+    "pneq": {"color": "k", "linestyle": "-", "linewidth": 3, "latitude": [-2.5, 2.5], "longitude": [120., 280.],
+             "short_name": "PNEQ"},
 }
 # ---------------------------------------------------------------------------------------------------------------------#
 
@@ -866,6 +909,118 @@ def _plot_shading(
             ax.fill_between(x, y1, y2=y2, alpha=a, color=c, linewidth=0.0, zorder=z)
 
 
+def plot_hovmoeller(
+        ax,
+        contours1_kwargs: dict = None,
+        contours2_kwargs: dict = None,
+        fontsize: float = None,
+        l_tic1: list = None,
+        l_tic2: list = None,
+        legend_position: str = "bottom",
+        s_lab: list = None,
+        s_nam: str = "",
+        s_tic: list = None,
+        sha_cs: str = None,
+        sha_l1: array_wrapper = None,
+        sha_l2: array_wrapper = None,
+        sha_s: array_wrapper = None,
+        **kwarg):
+    """
+    Plot hovmoeller
+
+    :param ax: matplotlib Axes object
+    :param contours1_kwargs: dict, optional
+        kwargs for the first contours (see https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.contour.html)
+    :param contours2_kwargs: dict, optional
+        kwargs for the second contours (see https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.contour.html)
+    :param fontsize: float, optional
+        Size of the font; e.g., fontsize = 15.
+    :param l_tic1: list[float], optional
+        Levels for first contours; e.g., l_tic1 = [-1, 1]
+    :param l_tic2: list[float], optional
+        Levels for second contours; e.g., l_tic2 = [-1, 1]
+    :param legend_position: str, optional
+        Position of the legend; e.g., fig_legend_position = 'bottom'
+        Two legend positions are accepted: 'bottom', 'right'
+        Default is 'bottom'
+    :param s_lab: list, optional
+        Tick labels for colorbar; e.g., s_lab = ['1', '2']
+    :param s_nam: str, optional
+        Label for the colorbar
+        Default is ''
+    :param s_tic: list, optional
+        Ticks for colorbar; e.g., s_lab = [1, 2]
+    :param sha_cs: str, optional
+        Name of a colorbar; e.g., sha_cs = 'cmo.rain'
+    :param sha_l1: array_like
+        Array for first contours
+    :param sha_l2: array_like
+        Array for second contours
+    :param sha_s: array_like
+        Array for shading
+    :param kwarg: dict, optional
+        Extra keywords (for title), see _ax_titles
+    """
+    # set default values if not given
+    contours1_kwargs = none_to_default(contours1_kwargs, {})
+    contours2_kwargs = none_to_default(contours2_kwargs, {})
+    fontsize = none_to_default(fontsize, default_plot["fontsize"])
+    s_lab = none_to_default(s_lab, default_plot["lab"])
+    l_tic1 = none_to_default(l_tic1, default_plot["tic"])
+    l_tic2 = none_to_default(l_tic2, default_plot["tic"])
+    s_tic = none_to_default(s_tic, default_plot["tic"])
+    sha_cs = none_to_default(sha_cs, default_map["colorbar"])
+    if sha_s is not None:
+        # x-y ticks and labels
+        ax.tick_params(axis="both", direction="out", which="both", labelsize=fontsize, bottom=True, top=False,
+                       left=True, right=True, labelbottom=True, labeltop=False, labelleft=True, labelright=False)
+        # colorbar levels
+        dif, mul = round(float(s_tic[1] - s_tic[0]), 5), 5
+        delta = round(dif / mul, 5)
+        lev = [round(k1 + k2 * delta, 5) for k1 in s_tic[:-1] for k2 in range(mul)] + [s_tic[-1]]
+        # shading
+        dim_x, dim_y = convert_cf_dim_key(sha_s, "X"), convert_cf_dim_key(sha_s, "T")
+        times, longitudes = sha_s[dim_y], sha_s[dim_x]
+        xx, yy = numpy__meshgrid(longitudes, times)
+        lc = ax.contourf(xx, yy, sha_s, lev, extend="both", cmap=sha_cs)
+        if sha_l1 is not None:
+            # contours
+            times = sha_s[convert_cf_dim_key(sha_s, "T")]
+            longitudes = sha_s[convert_cf_dim_key(sha_s, "X")]
+            xx, yy = numpy__meshgrid(longitudes, times)
+            ll = ax.contour(xx, yy, sha_l1, l_tic1, transform=ccrs.PlateCarree(), **contours1_kwargs)
+            # ax.clabel(ll, fontsize=fontsize, inline=True)
+        if sha_l2 is not None:
+            # contours
+            times = sha_s[convert_cf_dim_key(sha_s, "T")]
+            longitudes = sha_s[convert_cf_dim_key(sha_s, "X")]
+            xx, yy = numpy__meshgrid(longitudes, times)
+            ll = ax.contour(xx, yy, sha_l2, l_tic2, transform=ccrs.PlateCarree(), **contours2_kwargs)
+            # ax.clabel(ll, fontsize=fontsize, inline=True)
+        # title
+        _ax_titles(ax, **kwarg)
+        _ax_axis_x(ax, **kwarg)
+        _ax_axis_y(ax, **kwarg)
+        _ax_text(ax, **kwarg)
+        # colorbar
+        if legend_position == "bottom":
+            x1, x2 = ax.get_position().x0, ax.get_position().x1
+            y1, y2 = ax.get_position().y0, ax.get_position().y1
+            dy = default_map["size_y"] / kwarg["y_size"]
+            cax = pyplot.axes([x1, y1 - (y2 - y1) * dy / 5, x2 - x1, (y2 - y1) * dy / 15])
+            cbar = pyplot.colorbar(lc, cax=cax, orientation="horizontal", ticks=s_tic, label=s_lab, pad=0.3)
+            cbar.ax.tick_params(labelsize=fontsize)
+            cbar.set_label(s_nam, fontsize=fontsize, labelpad=2)
+        elif legend_position == "right":
+            x1, x2 = ax.get_position().x0, ax.get_position().x1
+            y1, y2 = ax.get_position().y0, ax.get_position().y1
+            dx = default_map["size_x"] / kwarg["x_size"]
+            cax = pyplot.axes([x2 + (x2 - x1) * dx / 20, y1, (x2 - x1) * dx / 30, y2 - y1])
+            cbar = pyplot.colorbar(lc, cax=cax, orientation="vertical", ticks=s_tic, label=s_lab, pad=0.35)
+            cbar.ax.tick_params(labelsize=fontsize)
+            cbar.set_label(s_nam, fontsize=fontsize, rotation=90)
+
+
 def plot_main(ax, **kwarg):
     """
     Plot given boxplots, curves, histograms, markers and shadings
@@ -899,4 +1054,152 @@ def plot_main(ax, **kwarg):
     _ax_text(ax, **kwarg)
     # legend
     _ax_legend(ax, **kwarg)
+
+
+def plot_map(
+        ax,
+        contours1_kwargs: dict = None,
+        contours2_kwargs: dict = None,
+        fontsize: float = None,
+        l_tic1: list = None,
+        l_tic2: list = None,
+        legend_position: str = "bottom",
+        projection: object = None,
+        region: list = None,
+        s_lab: list = None,
+        s_nam: str = "",
+        s_tic: list = None,
+        sha_cl: str = None,
+        sha_cs: str = None,
+        sha_l1: array_wrapper = None,
+        sha_l2: array_wrapper = None,
+        sha_s: array_wrapper = None,
+        **kwarg):
+    """
+    Plot map
+
+    :param ax: matplotlib Axes object
+    :param contours1_kwargs: dict, optional
+        kwargs for the first contours (see https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.contour.html)
+    :param contours2_kwargs: dict, optional
+        kwargs for the second contours (see https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.contour.html)
+    :param fontsize: float, optional
+        Size of the font; e.g., fontsize = 15.
+    :param l_tic1: list[float], optional
+        Levels for first contours; e.g., l_tic1 = [-1, 1]
+    :param l_tic2: list[float], optional
+        Levels for second contours; e.g., l_tic2 = [-1, 1]
+    :param legend_position: str, optional
+        Position of the legend; e.g., fig_legend_position = 'bottom'
+        Two legend positions are accepted: 'bottom', 'right'
+        Default is 'bottom'
+    :param projection: object, optional
+        Output from a cartopy projection (see https://scitools.org.uk/cartopy/docs/v0.15/crs/projections.html);
+        e.g., projection = cartopy.crs.PlateCarree()
+    :param region: list, optional
+        Names of region to draw on the map, must be defined in default_region; e.g., region = ['n30e']
+        Default is None (no region)
+    :param s_lab: list, optional
+        Tick labels for colorbar; e.g., s_lab = ['1', '2']
+    :param s_nam: str, optional
+        Label for the colorbar
+        Default is ''
+    :param s_tic: list, optional
+        Ticks for colorbar; e.g., s_lab = [1, 2]
+    :param sha_cl: str, optional
+        Name of a color for the land; e.g., sha_cl = 'grey'
+    :param sha_cs: str, optional
+        Name of a colorbar; e.g., sha_cs = 'cmo.rain'
+    :param sha_l1: array_like
+        Array for first contours
+    :param sha_l2: array_like
+        Array for second contours
+    :param sha_s: array_like
+        Array for shading
+    :param kwarg: dict, optional
+        Extra keywords (for title), see _ax_titles
+    """
+    # set default values if not given
+    contours1_kwargs = none_to_default(contours1_kwargs, {})
+    contours2_kwargs = none_to_default(contours2_kwargs, {})
+    fontsize = none_to_default(fontsize, default_plot["fontsize"])
+    projection = none_to_default(projection, default_map["projection"])
+    s_lab = none_to_default(s_lab, default_plot["lab"])
+    l_tic1 = none_to_default(l_tic1, default_plot["tic"])
+    l_tic2 = none_to_default(l_tic2, default_plot["tic"])
+    s_tic = none_to_default(s_tic, default_plot["tic"])
+    sha_cl = none_to_default(sha_cl, default_map["color"])
+    sha_cs = none_to_default(sha_cs, default_map["colorbar"])
+    if sha_s is not None:
+        # select region
+        ax.coastlines()
+        # ax.set_extent(x_lim + y_lim, crs=projection)
+        # draw coastlines
+        ax.coastlines()
+        # fill continents
+        ax.add_feature(cfeature.NaturalEarthFeature(
+            "physical", "land", "110m", edgecolor="face", facecolor=sha_cl))
+        # x-y ticks and labels
+        ax.tick_params(axis="both", direction="out", which="both", labelsize=fontsize, bottom=True, top=False,
+                       left=True, right=True, labelbottom=True, labeltop=False, labelleft=True, labelright=False)
+        # colorbar levels
+        dif, mul = round(float(s_tic[1] - s_tic[0]), 5), 5
+        delta = round(dif / mul, 5)
+        lev = [round(k1 + k2 * delta, 5) for k1 in s_tic[:-1] for k2 in range(mul)] + [s_tic[-1]]
+        # shading
+        latitudes = sha_s[convert_cf_dim_key(sha_s, "Y")]
+        longitudes = sha_s[convert_cf_dim_key(sha_s, "X")]
+        xx, yy = numpy__meshgrid(longitudes, latitudes)
+        lc = ax.contourf(xx, yy, sha_s, lev, extend="both", transform=projection, cmap=sha_cs)
+        if sha_l1 is not None:
+            # contours
+            latitudes = sha_l1[convert_cf_dim_key(sha_l1, "Y")]
+            longitudes = sha_l1[convert_cf_dim_key(sha_l1, "X")]
+            xx, yy = numpy__meshgrid(longitudes, latitudes)
+            ll = ax.contour(xx, yy, sha_l1, l_tic1, transform=ccrs.PlateCarree(), **contours1_kwargs)
+            # ax.clabel(ll, fontsize=fontsize, inline=True)
+        if sha_l2 is not None:
+            # contours
+            latitudes = sha_l2[convert_cf_dim_key(sha_l2, "Y")]
+            longitudes = sha_l2[convert_cf_dim_key(sha_l2, "X")]
+            xx, yy = numpy__meshgrid(longitudes, latitudes)
+            ll = ax.contour(xx, yy, sha_l2, l_tic2, transform=ccrs.PlateCarree(), **contours2_kwargs)
+            # ax.clabel(ll, fontsize=fontsize, inline=True)
+        # title
+        _ax_titles(ax, **kwarg)
+        _ax_axis_x(ax, **kwarg)
+        _ax_axis_y(ax, **kwarg)
+        _ax_text(ax, **kwarg)
+        # region delimitation
+        if isinstance(region, list) is True or isinstance(region, str) is True:
+            list_reg = deepcopy(region) if isinstance(region, list) is True else [region]
+            for k in list_reg:
+                lat_corners = numpy__array(default_region[k]["latitude"] +
+                                           list(reversed(default_region[k]["latitude"])))
+                lon_corners = numpy__array([default_region[k]["longitude"][0]] * 2 +
+                                           [default_region[k]["longitude"][1]] * 2)
+                poly_corners = numpy__zeros((len(lat_corners), 2))
+                poly_corners[:, 0] = lon_corners
+                poly_corners[:, 1] = lat_corners
+                pol = Polygon(poly_corners, linestyle=default_region[k]["linestyle"],
+                              linewidth=default_region[k]["linewidth"], edgecolor=default_region[k]["color"],
+                              facecolor="none", zorder=5, transform=projection)
+                ax.add_patch(pol)
+        # colorbar
+        if legend_position == "bottom":
+            x1, x2 = ax.get_position().x0, ax.get_position().x1
+            y1, y2 = ax.get_position().y0, ax.get_position().y1
+            dy = default_map["size_y"] / kwarg["y_size"]
+            cax = pyplot.axes([x1, y1 - (y2 - y1) * dy / 5, x2 - x1, (y2 - y1) * dy / 15])
+            cbar = pyplot.colorbar(lc, cax=cax, orientation="horizontal", ticks=s_tic, label=s_lab, pad=0.3)
+            cbar.ax.tick_params(labelsize=fontsize)
+            cbar.set_label(s_nam, fontsize=fontsize, labelpad=2)
+        elif legend_position == "right":
+            x1, x2 = ax.get_position().x0, ax.get_position().x1
+            y1, y2 = ax.get_position().y0, ax.get_position().y1
+            dx = default_map["size_x"] / kwarg["x_size"]
+            cax = pyplot.axes([x2 + (x2 - x1) * dx / 20, y1, (x2 - x1) * dx / 30, y2 - y1])
+            cbar = pyplot.colorbar(lc, cax=cax, orientation="vertical", ticks=s_tic, label=s_lab, pad=0.35)
+            cbar.ax.tick_params(labelsize=fontsize)
+            cbar.set_label(s_nam, fontsize=fontsize, rotation=90)
 # ---------------------------------------------------------------------------------------------------------------------#

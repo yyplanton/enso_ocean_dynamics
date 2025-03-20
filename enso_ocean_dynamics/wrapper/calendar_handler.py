@@ -8,6 +8,8 @@
 # Import packages
 # ---------------------------------------------------#
 # basic python package
+from datetime import datetime as datetime__datetime
+from typing import Any
 # numpy
 from numpy import integer as numpy__integer
 from numpy import ndarray as numpy__ndarray
@@ -59,4 +61,16 @@ def get_days_per_month(time: Index, calendar: str = "standard") -> numpy__ndarra
         if month == 2 and _leap_year(year, calendar=calendar):
             month_length[k] += 1
     return month_length
+
+
+def time_for_plot(time_i: Any, reference_year: int) -> list[float]:
+    t0 = datetime__datetime(reference_year, 1, 1, 0, 0, 0)
+    time_o = []
+    for k in time_i:
+        if isinstance(k, int) is True and 0 <= k <= 2300:
+            t1 = datetime__datetime(k, 1, 1, 0, 0, 0)
+        else:
+            t1 = datetime__datetime(k.year, k.month, k.day, k.hour, k.minute, k.second)
+        time_o.append((t1 - t0).total_seconds())
+    return time_o
 # ---------------------------------------------------------------------------------------------------------------------#

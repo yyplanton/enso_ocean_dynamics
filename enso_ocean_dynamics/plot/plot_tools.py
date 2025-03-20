@@ -8,7 +8,7 @@
 # Import packages
 # ---------------------------------------------------#
 # basic python package
-from copy import deepcopy as copy__deepcopy
+from copy import deepcopy as copy__deepcopy, deepcopy
 from math import ceil as math__ceil
 from math import floor as math__floor
 from math import log as math__log
@@ -125,29 +125,30 @@ def axis_ticklabel(arr_i: list, nam_i: str = "") -> list:
     """
     # create labels
     labels = copy__deepcopy(arr_i)
+    arr_t = deepcopy(arr_i)
     if nam_i == "latitude":
-        arr_i = [abs(k) if k < 0 else k for k in arr_i]
+        arr_t = [abs(k) if k < 0 else k for k in arr_i]
     elif nam_i == "longitude":
-        arr_i = [360 - k if k > 180 else k for k in arr_i]
-    if all([int(k) == k for k in arr_i]) is True:
+        arr_t = [360 - k if k > 180 else k for k in arr_i]
+    if all([int(k) == k for k in arr_t]) is True:
         # int to str
-        labels = [str(k) for k in arr_i]
-    elif all([int(round(k * 10, 8)) == round(k * 10, 8) for k in arr_i]) is True:
+        labels = [str(k) for k in arr_t]
+    elif all([int(round(k * 10, 8)) == round(k * 10, 8) for k in arr_t]) is True:
         # format all values with 1 decimal
-        labels = ["{0:.1f}".format(round(k, 1)) for k in arr_i]
-    elif all([int(round(k * 100, 8)) == round(k * 100, 8) for k in arr_i]) is True:
+        labels = ["{0:.1f}".format(round(k, 1)) for k in arr_t]
+    elif all([int(round(k * 100, 8)) == round(k * 100, 8) for k in arr_t]) is True:
         # format all values with 2 decimals
-        labels = ["{0:.2f}".format(round(k, 2)) for k in arr_i]
-    elif all([int(round(k * 1000, 8)) == round(k * 1000, 8) for k in arr_i]) is True:
+        labels = ["{0:.2f}".format(round(k, 2)) for k in arr_t]
+    elif all([int(round(k * 1000, 8)) == round(k * 1000, 8) for k in arr_t]) is True:
         # format all values with 3 decimals
-        labels = ["{0:.3f}".format(round(k, 3)) for k in arr_i]
+        labels = ["{0:.3f}".format(round(k, 3)) for k in arr_t]
     # latitude / longitude
     if nam_i == "latitude":
         labels = [str(k2) + "$^\circ$S" if k1 < 0 else (str(k2) + "$^\circ$N" if k1 > 0 else str(k2) + "$^\circ$")
                   for k1, k2 in zip(arr_i, labels)]
     elif nam_i == "longitude":
-        labels = [str(k2) + "$^\circ$E" if k1 < 180 else (str(k2) + "$^\circ$W" if k1 > 180 else str(k2) + "$^\circ$")
-                  for k1, k2 in zip(arr_i, labels)]
+        labels = [str(k2) + "$^\circ$E" if k1 < 180 else (
+            str(k2) + "$^\circ$W" if k1 > 180 else str(k2) + "$^\circ$") for k1, k2 in zip(arr_i, labels)]
     return labels
 
 

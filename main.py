@@ -15,6 +15,8 @@ import enso_ocean_dynamics.script_figures as fig
 # collect the figure scripts
 figure_scripts = {
     "f1": fig.f01_time_series_plot,
+    "f2": fig.f02_hovmoeller_plot,
+    "f3": fig.f03_map_plot,
 }
 figure_calling_names = ", ".join(figure_scripts.keys())
 

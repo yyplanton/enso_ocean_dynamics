@@ -1,6 +1,6 @@
 # -*- coding:UTF-8 -*-
 # ---------------------------------------------------------------------------------------------------------------------#
-# Lead-lag correlations
+# Plot time series
 # ---------------------------------------------------------------------------------------------------------------------#
 
 
@@ -17,6 +17,7 @@ from typing import Literal
 from enso_ocean_dynamics.plot.templates import fig_basic
 from enso_ocean_dynamics.tools.default_tools import none_to_default
 from enso_ocean_dynamics.tools.dictionary_tools import put_in_dict
+from enso_ocean_dynamics.wrapper.calendar_handler import time_for_plot
 from enso_ocean_dynamics.wrapper.processors import reader
 # ---------------------------------------------------#
 
@@ -63,10 +64,9 @@ default = {
     # ticks
     "fig_ticks": {
         "panel_1": {
-            "x_lab": [str(k) for k in range(1995, 2021, 5)],
-            "x_lim": [0, 325],
+            "x_lim": [1990, 2020],
             "x_nam": "",
-            "x_tic": list(range(24, 325, 60)),
+            "x_tic": list(range(1990, 2021, 5)),
             "y_lim": [-10, 10],
             "y_nam": "VARIABLE (UNITS)",
             "y_tic": list(range(-10, 11, 5)),
@@ -130,7 +130,6 @@ def f01_time_series_plot(
     #
     figure_axes, plot_data = {}, {}
     # panel 1: time series
-    nbr_panel = 1
     panel = "panel_1"
     for dia in list(values.keys()):
         for dat in list(values[dia].keys()):
@@ -143,7 +142,24 @@ def f01_time_series_plot(
             if panel in list(fig_ticks.keys()):
                 for k1, k2 in fig_ticks[panel].items():
                     tmp = copy__deepcopy(k2)
+                    if k1 == "x_lim" or (k1 == "x_tic" and "x_lim" not in list(fig_ticks[panel].keys())):
+                        tmp = time_for_plot(tmp, tmp[0])
+                    elif k1 == "x_tic":
+                        tmp = time_for_plot(tmp, fig_ticks[panel]["x_lim"][0])
+                    elif k1 in ["x_nam", "y_nam"]:
+                        if "VARIABLE" in tmp and "short_name" in list(arr.attrs.keys()):
+                            tmp = tmp.replace("VARIABLE", arr.attrs["short_name"])
+                        if "UNITS" in tmp and "units" in list(arr.attrs.keys()):
+                            tmp = tmp.replace("UNITS", arr.attrs["units"])
+                            tmp = tmp.replace(" ()", "")
                     put_in_dict(figure_axes, tmp, *tuple_k + (k1,))
+                    if k1 == "x_tic" and "x_lab" not in list(fig_ticks[panel].keys()):
+                        tmp = [str(k3) for k3 in fig_ticks[panel]["x_tic"]]
+                        put_in_dict(figure_axes, tmp, *tuple_k + ("x_lab",))
+                    if k1 == "x_tic" and "x_lim" not in list(fig_ticks[panel].keys()):
+                        tmp = copy__deepcopy(fig_ticks[panel]["x_tic"])
+                        tmp = time_for_plot([tmp[0], tmp[-1]], tmp[0])
+                        put_in_dict(figure_axes, tmp, *tuple_k + ("x_lim",))
             dt = {}
             if dia in list(figure_axes.keys()) and grp in list(figure_axes[dia].keys()) and \
                     pan in list(figure_axes[dia][grp].keys()):
@@ -158,11 +174,12 @@ def f01_time_series_plot(
             lc, ls, lw, lz = [fig_colors[dat]], ["-"], [1], [2]
             time = arr["time"].to_index()
             y0 = time[0].year
-            xx, yy = [], []
-            for k1, k2 in enumerate(arr.values):
-                xx.append(k1 + (time[0].year - y0) * 12)
-                yy.append(k2)
-            lx, ly = [xx], [yy]
+            if panel in list(fig_ticks.keys()) and "x_lim" in list(fig_ticks[panel].keys()):
+                y0 = fig_ticks[panel]["x_lim"][0]
+            elif panel in list(fig_ticks.keys()) and "x_tic" in list(fig_ticks[panel].keys()):
+                y0 = fig_ticks[panel]["x_tic"][0]
+            lx = [time_for_plot(time, y0)]
+            ly = [arr.values]
             # grid
             if do_legend is True:
                 x1, x2, y1, y2 = dt["x_lim"] + dt["y_lim"]
@@ -182,14 +199,21 @@ def f01_time_series_plot(
                 dx, dy = (x2 - x1) / 100, (y2 - y1) / 100
                 # dataset names
                 lt, lc, lf, lh, lv, lx, ly = [], [], [], [], [], [], []
-                for k1, k2 in zip([dat], ["left"]):
+                for k1, k2, k3 in zip([dat], ["right"], ["top"]):
                     lt.append(k1)
                     lc.append(fig_colors[k1])
                     lf.append(15)
                     lh.append(k2)
-                    lv.append("bottom")
-                    lx.append(x1 + 2 * dx if k1 == dat else x2 - 2 * dx)
-                    ly.append(y1 + 2 * dy)
+                    lv.append(k3)
+                    lx.append(x2 - 2 * dx)
+                    ly.append(y2 - 2 * dy)
+                put_in_dict(plot_data, copy__deepcopy(lt), *tuple_k + (plot_type,))
+                put_in_dict(plot_data, copy__deepcopy(lc), *tuple_k + (str(plot_type) + "_c",))
+                put_in_dict(plot_data, copy__deepcopy(lf), *tuple_k + (str(plot_type) + "_fs",))
+                put_in_dict(plot_data, copy__deepcopy(lh), *tuple_k + (str(plot_type) + "_ha",))
+                put_in_dict(plot_data, copy__deepcopy(lv), *tuple_k + (str(plot_type) + "_va",))
+                put_in_dict(plot_data, copy__deepcopy(lx), *tuple_k + (str(plot_type) + "_x",))
+                put_in_dict(plot_data, copy__deepcopy(ly), *tuple_k + (str(plot_type) + "_y",))
     #
     # -- Plot
     #
